@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Codexa Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="admin-body">
+  <div class="noise" aria-hidden="true"></div>
+  <div class="page-glow page-glow-one" aria-hidden="true"></div>
+  <div class="page-glow page-glow-two" aria-hidden="true"></div>
+
+  <main class="admin-shell">
+    <section class="admin-login" id="loginView">
+      <div class="login-card">
+        <a href="index.html" class="admin-brand" aria-label="Kembali ke portfolio">
+          <img src="/assets/img/codexa-logo.jpeg" alt="Logo Codexa" />
+          <span><strong>Codexa</strong><small>Admin dashboard</small></span>
+        </a>
+
+        <div class="login-copy">
+          <p class="label">Private Area</p>
+          <h1>Masuk admin dulu buat kelola project.</h1>
+          <p>Halaman ini tidak dipasang di navbar. Aksesnya langsung lewat <code>/admin.html</code>.</p>
+        </div>
+
+        <div class="setup-alert" id="setupAlert" hidden>
+          Supabase belum diisi. Isi dulu <strong>.env</strong> untuk lokal, lalu Environment Variables di Vercel.
+        </div>
+
+        <form class="admin-form login-form" id="loginForm">
+          <label>Email admin<input type="email" name="email" placeholder="admin@email.com" autocomplete="email" required /></label>
+          <label>Password<input type="password" name="password" placeholder="Password Supabase Auth" autocomplete="current-password" required /></label>
+          <button type="submit" class="btn btn-primary">Login Admin</button>
+          <p class="admin-status" id="loginStatus" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+
+    <section class="admin-dashboard" id="dashboardView" hidden>
+      <header class="admin-topbar">
+        <a href="index.html" class="admin-brand" aria-label="Lihat portfolio">
+          <img src="/assets/img/codexa-logo.jpeg" alt="Logo Codexa" />
+          <span><strong>Codexa</strong><small>Project manager</small></span>
+        </a>
+        <div class="admin-actions">
+          <a href="index.html#projects" class="admin-link">Lihat Web</a>
+          <button class="logout-btn" id="logoutBtn" type="button">Logout</button>
+        </div>
+      </header>
+
+      <div class="admin-hero">
+        <div>
+          <p class="label">Dashboard Admin</p>
+          <h1>Kelola kategori, foto, dan detail project dari sini.</h1>
+          <p>Tambah kategori sendiri, upload beberapa screenshot, pilih mode desktop/mobile, lalu data tampil otomatis di section Project.</p>
+        </div>
+        <div class="admin-stats">
+          <div><strong id="totalProjects">0</strong><span>Total Project</span></div>
+          <div><strong id="activeProjects">0</strong><span>Aktif Tampil</span></div>
+        </div>
+      </div>
+
+      <div class="admin-grid">
+        <section class="editor-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Editor Project</p>
+              <h2 id="editorTitle">Tambah project baru</h2>
+            </div>
+            <button class="mini-btn" type="button" id="cancelEditBtn" hidden>Batal edit</button>
+          </div>
+
+          <form class="admin-form project-form" id="projectForm">
+            <input type="hidden" name="id" />
+            <input type="hidden" name="image_url" />
+            <input type="hidden" name="image_path" />
+
+            <div class="form-grid-two">
+              <label>Nama project<input type="text" name="title" placeholder="Contoh: LuxeStay Booking Hotel" required /></label>
+              <label>Kategori
+                <select name="category" id="projectCategorySelect" required>
+                  <option value="website">Website</option>
+                  <option value="dashboard">Dashboard</option>
+                  <option value="uiux">UI/UX</option>
+                </select>
+              </label>
+            </div>
+
+            <label>Deskripsi singkat<input type="text" name="short_description" placeholder="Contoh: Flow booking hotel dengan tampilan mobile yang bersih." required /></label>
+            <label>Detail popup<textarea name="subtitle" rows="3" placeholder="Jelaskan project ini secara singkat saat card diklik." required></textarea></label>
+            <label>Fitur utama <small>pisahkan per baris</small><textarea name="features" rows="5" placeholder="Cari kamar dan lihat detail&#10;Booking mobile-friendly&#10;Status pembayaran lebih jelas"></textarea></label>
+            <label>Catatan tambahan<textarea name="note" rows="3" placeholder="Contoh: Project ini cocok untuk memperlihatkan kemampuan membuat sistem pemesanan."></textarea></label>
+
+            <div class="form-grid-two">
+              <label>Urutan tampil<input type="number" name="sort_order" value="1" min="0" /></label>
+              <label>Tampilan foto utama
+                <select name="display_device">
+                  <option value="desktop">Web Desktop</option>
+                  <option value="mobile">Web Mobile</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="toggle-row"><input type="checkbox" name="is_active" checked /> <span>Tampilkan di portfolio</span></label>
+
+            <label class="upload-box" for="projectImage">
+              <input type="file" id="projectImage" name="project_image" accept="image/png,image/jpeg,image/webp" multiple />
+              <span class="upload-icon">↥</span>
+              <strong>Upload foto project</strong>
+              <small>Bisa pilih beberapa foto sekaligus. PNG, JPG, atau WEBP. Maksimal 5MB per foto.</small>
+            </label>
+
+            <div class="image-preview" id="imagePreview" hidden>
+              <div class="preview-head">
+                <strong>Foto di form</strong>
+                <button type="button" class="mini-btn danger" id="clearImageBtn">Kosongkan semua</button>
+              </div>
+              <div class="image-preview-list" id="imagePreviewList"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="saveProjectBtn">Simpan Project</button>
+            <p class="admin-status" id="projectStatus" aria-live="polite"></p>
+          </form>
+        </section>
+
+        <div class="admin-side-stack">
+          <section class="category-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">Menu Kategori</p>
+                <h2>Tambah kategori</h2>
+              </div>
+            </div>
+
+            <form class="admin-form category-form" id="categoryForm">
+              <div class="form-grid-two compact-form-grid">
+                <label>Nama kategori<input type="text" name="name" placeholder="Contoh: Landing Page" required /></label>
+                <label>Slug <small>boleh dikosongkan</small><input type="text" name="slug" placeholder="landing-page" /></label>
+              </div>
+              <div class="category-form-actions">
+                <label>Urutan<input type="number" name="sort_order" value="1" min="0" /></label>
+                <button type="submit" class="mini-btn">Tambah</button>
+              </div>
+              <p class="admin-status" id="categoryStatus" aria-live="polite"></p>
+            </form>
+
+            <div class="category-list" id="categoryList">
+              <div class="loading-row">Memuat kategori...</div>
+            </div>
+          </section>
+
+          <section class="project-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">Daftar Project</p>
+                <h2>Project tersimpan</h2>
+              </div>
+              <button class="mini-btn" type="button" id="refreshProjectsBtn">Refresh</button>
+            </div>
+            <div class="admin-project-list" id="adminProjectList">
+              <div class="loading-row">Memuat data...</div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/src/js/admin.js"></script>
+</body>
+</html>
