@@ -102,3 +102,23 @@ Login, lalu tambah/edit project dan upload beberapa foto. Pilih `Web Desktop` ka
 ## Revisi zoom foto project
 
 Di halaman utama, klik card project untuk membuka popup detail. Kalau project punya foto dari dashboard admin, gambar di popup bisa diklik lagi untuk membuka tampilan fullscreen/lightbox. Di lightbox, gambar ditampilkan dengan `object-fit: contain` supaya tidak kepotong dan lebih jelas. Kalau fotonya lebih dari satu, tombol panah kiri/kanan dan keyboard arrow bisa dipakai untuk pindah gambar.
+
+
+## Troubleshooting kategori
+
+Kalau dashboard menampilkan error `Could not find the table public.portfolio_categories`, berarti environment variable di Vercel/lokal masih memakai nama tabel lama. Pakai nilai berikut:
+
+```env
+VITE_SUPABASE_CATEGORY_TABLE=project_categories
+```
+
+Versi ini juga sudah diberi fallback agar tetap mencoba `project_categories` walaupun env lama masih terisi `portfolio_categories`.
+
+## Upload banyak foto
+
+Input foto project sekarang bisa dipakai dua cara:
+
+1. Pilih beberapa foto sekaligus dari file picker.
+2. Pilih satu foto, lalu klik upload lagi untuk menambah foto berikutnya sebelum menekan Simpan Project.
+
+Semua foto yang terlihat di preview akan disimpan ke kolom `media` di tabel `portfolio_projects`.

@@ -504,24 +504,38 @@ import { CODEXA_SUPABASE, CODEXA_SITE } from "./supabase-config.js";
     }
   });
 
+  const uniqueItems = (items = []) => [...new Set(items.filter(Boolean))];
+  const categoryTableCandidates = () => uniqueItems([supabaseConfig.categoryTable || "project_categories", "project_categories", "portfolio_categories"]);
+  const isMissingTableError = (error = {}) => {
+    const message = String(error.message || "").toLowerCase();
+    return error.code === "PGRST205" || message.includes("could not find the table") || message.includes("schema cache");
+  };
+
   const fetchCategories = async () => {
     if (!supabaseClient) {
       renderFilters([]);
       return;
     }
 
-    try {
-      const { data, error } = await supabaseClient
-        .from(supabaseConfig.categoryTable || "project_categories")
-        .select("name,slug,sort_order,is_active")
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true });
+    let lastError = null;
+    for (const tableName of categoryTableCandidates()) {
+      try {
+        const { data, error } = await supabaseClient
+          .from(tableName)
+          .select("name,slug,sort_order,is_active")
+          .eq("is_active", true)
+          .order("sort_order", { ascending: true });
 
-      if (error) throw error;
-      if (Array.isArray(data) && data.length) categories = data;
-    } catch (error) {
-      console.warn("Kategori dari Supabase belum bisa dimuat. Filter fallback tetap dipakai.", error.message);
+        if (error) throw error;
+        if (Array.isArray(data) && data.length) categories = data;
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!isMissingTableError(error)) break;
+      }
     }
+
+    console.warn("Kategori dari Supabase belum bisa dimuat. Filter fallback tetap dipakai.", lastError?.message);
   };
 
   const fetchProjects = async () => {

@@ -8,8 +8,15 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
   const hasSupabaseConfig = Boolean(cfg.url && cfg.anonKey);
   const supabaseClient = hasSupabaseConfig ? createClient(cfg.url, cfg.anonKey) : null;
   const projectTable = cfg.projectTable || "portfolio_projects";
-  const categoryTable = cfg.categoryTable || "project_categories";
+  let categoryTable = cfg.categoryTable || "project_categories";
   const projectBucket = cfg.projectBucket || "codexa-projects";
+
+  const uniqueItems = (items = []) => [...new Set(items.filter(Boolean))];
+  const categoryTableCandidates = () => uniqueItems([categoryTable, "project_categories", "portfolio_categories"]);
+  const isMissingTableError = (error = {}) => {
+    const message = String(error.message || "").toLowerCase();
+    return error.code === "PGRST205" || message.includes("could not find the table") || message.includes("schema cache");
+  };
 
   const defaultCategories = [
     { name: "Website", slug: "website", sort_order: 1, is_active: true },
@@ -321,21 +328,58 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
       return;
     }
 
-    try {
-      const { data, error } = await supabaseClient
-        .from(categoryTable)
-        .select("id,name,slug,sort_order,is_active,created_at")
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
+    let lastError = null;
+    for (const tableName of categoryTableCandidates()) {
+      try {
+        const { data, error } = await supabaseClient
+          .from(tableName)
+          .select("id,name,slug,sort_order,is_active,created_at")
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: true });
 
-      if (error) throw error;
-      categories = Array.isArray(data) && data.length ? data : [...defaultCategories];
-      renderCategories();
-    } catch (error) {
-      categories = [...defaultCategories];
-      renderCategories();
-      setStatus(categoryStatus, `Kategori belum bisa dimuat: ${error.message}`, true);
+        if (error) throw error;
+        categoryTable = tableName;
+        categories = Array.isArray(data) && data.length ? data : [...defaultCategories];
+        renderCategories();
+        setStatus(categoryStatus, "");
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!isMissingTableError(error)) break;
+      }
     }
+
+    categories = [...defaultCategories];
+    renderCategories();
+    setStatus(categoryStatus, `Kategori belum bisa dimuat: ${lastError?.message || "table kategori belum tersedia"}`, true);
+  };
+
+  const insertCategory = async (payload) => {
+    let lastError = null;
+    for (const tableName of categoryTableCandidates()) {
+      const { error } = await supabaseClient.from(tableName).insert(payload);
+      if (!error) {
+        categoryTable = tableName;
+        return;
+      }
+      lastError = error;
+      if (!isMissingTableError(error)) break;
+    }
+    throw lastError || new Error("Table kategori belum tersedia.");
+  };
+
+  const removeCategory = async (slug) => {
+    let lastError = null;
+    for (const tableName of categoryTableCandidates()) {
+      const { error } = await supabaseClient.from(tableName).delete().eq("slug", slug);
+      if (!error) {
+        categoryTable = tableName;
+        return;
+      }
+      lastError = error;
+      if (!isMissingTableError(error)) break;
+    }
+    throw lastError || new Error("Table kategori belum tersedia.");
   };
 
   const loadProjects = async () => {
@@ -432,8 +476,7 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
     if (!ok) return;
 
     try {
-      const { error } = await supabaseClient.from(categoryTable).delete().eq("slug", slug);
-      if (error) throw error;
+      await removeCategory(slug);
       setStatus(categoryStatus, "Kategori berhasil dihapus.");
       await loadCategories();
     } catch (error) {
@@ -443,11 +486,10 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
 
   projectImage?.addEventListener("change", () => {
     revokePreviews();
-    selectedFiles = [];
-    const files = Array.from(projectImage.files || []);
+    const incomingFiles = Array.from(projectImage.files || []);
     const allowed = ["image/png", "image/jpeg", "image/webp"];
 
-    for (const file of files) {
+    for (const file of incomingFiles) {
       if (!allowed.includes(file.type)) {
         setStatus(projectStatus, "Format gambar harus PNG, JPG, atau WEBP.", true);
         projectImage.value = "";
@@ -463,9 +505,16 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
       }
     }
 
-    selectedFiles = files;
+    const fileMap = new Map(selectedFiles.map((file) => [`${file.name}-${file.size}-${file.lastModified}`, file]));
+    incomingFiles.forEach((file) => fileMap.set(`${file.name}-${file.size}-${file.lastModified}`, file));
+    selectedFiles = Array.from(fileMap.values());
+
+    const dt = new DataTransfer();
+    selectedFiles.forEach((file) => dt.items.add(file));
+    projectImage.files = dt.files;
+
     renderPreview();
-    setStatus(projectStatus, files.length ? `${files.length} foto siap diupload saat project disimpan.` : "");
+    setStatus(projectStatus, selectedFiles.length ? `${selectedFiles.length} foto siap diupload saat project disimpan. Kamu bisa pilih file lagi kalau mau menambah foto lain.` : "");
   });
 
   projectForm?.elements.display_device?.addEventListener("change", renderPreview);
@@ -534,10 +583,7 @@ import { CODEXA_SUPABASE } from "./supabase-config.js";
 
     try {
       setStatus(categoryStatus, "Menyimpan kategori...");
-      const { error } = await supabaseClient
-        .from(categoryTable)
-        .insert({ name, slug, sort_order: sortOrder, is_active: true });
-      if (error) throw error;
+      await insertCategory({ name, slug, sort_order: sortOrder, is_active: true });
       categoryForm.reset();
       categoryForm.elements.sort_order.value = String(categories.length + 1);
       setStatus(categoryStatus, "Kategori berhasil ditambahkan dan sudah masuk ke pilihan project.");
